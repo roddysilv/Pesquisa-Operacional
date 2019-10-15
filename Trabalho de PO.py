@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from gurobipy import *
 
@@ -20,6 +21,8 @@ RH=[]           #Relative Humidity (%)
 AH=[]           #Absolute Humidity
 Time=[]         #Time (HH.MM.SS)
 Date=[]         #Date (DD/MM/YYYY)
+
+t_c=[]          #Toxicidade do componente c
 
 def inicia():
     for i in range(len(df[:,:])):
@@ -63,6 +66,17 @@ def trataValor(vet): #Troca valores '-200'(valores faltantes) pela media da hora
                     vet[i]=round(aux1/aux2,4)
             vetAux.clear()
 
+def hora(a):    #transforma hr de str para int
+    j=18
+    for i in range(0,len(a)):
+        if j<24:
+            a[i]=j
+            j=j+1
+        else:
+            j=0
+            a[i]=j
+            j=j+1
+            
 inicia()
 
 trataValor(CO_GT)
@@ -79,17 +93,36 @@ trataValor(T)
 trataValor(RH)
 trataValor(AH)
     
+hora(Time)
+
+Q_ch=np.zeros([4,len(Time)]) # Quantidade do componente 'c' no horario 'h'
+for i in range(len(Time)):
+    Q_ch[0][i]=CO_GT[i]
+    Q_ch[1][i]=C6H6_GT[i]
+    Q_ch[2][i]=NOx_GT[i]
+    Q_ch[3][i]=NO2_GT[i]
+
+lim_c=[] #limites de concentração saudáveis
+lim_c.append(10)
+lim_c.append(5)
+lim_c.append(60)
+lim_c.append(100)
 
 
-Dt = [(Date[i], Time[i]) for i in range(0, len(Date))] #Tupla de Data e Tempo
+#Modelo
+m=Model('Modelo')
 
 #Variáveis
-y_h=[]  #Variável que representa o horário selecionado [0,1]
-q_ch=[] #Quantidade do componente 'c' no horário 'h'
-t_c=[]  #Toxicidade do componente 'c'
+#y=[]
+y=m.addVar(9357,vtype = GRB.BINARY, name="Y")
+m.update()
 
-X_c=[]  #Valor máximo do componente 'c' em td período
-W_h=[]  #Começo do intervalo selecionado no horário 'h'
-Y_hd=[] #Horário 'h' do dia 'd'
+#Restrições
+r1=m.addConstr ((quicksum(y[h] for h in range(3957))) = 1)
+r2=m.addConstr (Q_ch[c][h]*y[h] <= lim_c[c] for c in range(4)
+                                            for h in range(9357))
 
-D=2     #Constante que representa a duração do intervalo em hrs
+#Objetivo
+m.setObjective((quicksum(t_c[c]*Q_ch[c][h])*y[h] 
+                                for h in 9357
+                                for c in 4),GRB.MINIMIZE)
