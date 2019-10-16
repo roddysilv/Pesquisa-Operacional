@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
+from datetime import datetime
 from gurobipy import *
+
 
 df=pd.read_csv('teste.csv') #Cria Data Frame 
 df=df.values                #Cria matriz apenas com os valores do df
@@ -22,7 +24,7 @@ AH=[]           #Absolute Humidity
 Time=[]         #Time (HH.MM.SS)
 Date=[]         #Date (DD/MM/YYYY)
 
-t_c=[]          #Toxicidade do componente c
+t_c=[1,1,1,1]          #Toxicidade do componente c
 
 def inicia():
     for i in range(len(df[:,:])):
@@ -76,7 +78,13 @@ def hora(a):    #transforma hr de str para int
             j=0
             a[i]=j
             j=j+1
-            
+
+def data(a):
+    for i in range(len(a)):
+        a[i]=datetime.strptime(a[i],'%d/%m/%Y') 
+        
+       
+
 inicia()
 
 trataValor(CO_GT)
@@ -94,35 +102,78 @@ trataValor(RH)
 trataValor(AH)
     
 hora(Time)
+data(Date)
 
-Q_ch=np.zeros([4,len(Time)]) # Quantidade do componente 'c' no horario 'h'
-for i in range(len(Time)):
+Q_ch=np.zeros([4,len(CO_GT)]) # Quantidade do componente 'c' no horario 'h'
+for i in range(len(CO_GT)):
     Q_ch[0][i]=CO_GT[i]
     Q_ch[1][i]=C6H6_GT[i]
     Q_ch[2][i]=NOx_GT[i]
     Q_ch[3][i]=NO2_GT[i]
 
 lim_c=[] #limites de concentração saudáveis
-lim_c.append(10)
-lim_c.append(5)
-lim_c.append(60)
-lim_c.append(100)
+lim_c.append(10)    #mg/m3
+lim_c.append(5)     #microg/m3
+lim_c.append(60)    #ppb
+lim_c.append(100)   #microg/m3
 
-
+def soma(a):
+    b=0
+    for i in range(9357):
+        b+=a[i]
+    return b
 #Modelo
 m=Model('Modelo')
 
 #Variáveis
-#y=[]
-y=m.addVar(9357,vtype = GRB.BINARY, name="Y")
+y={}
+for h in range(9357):
+    y[h]=m.addVar(vtype = GRB.BINARY)
 m.update()
 
 #Restrições
-r1=m.addConstr ((quicksum(y[h] for h in range(3957))) = 1)
-r2=m.addConstr (Q_ch[c][h]*y[h] <= lim_c[c] for c in range(4)
-                                            for h in range(9357))
+#r1=m.addConstr ((sum(y[h]) for h in range(9357))==1)
+#r2=m.addConstr ((Q_ch[c][h]*y[h] <= lim_c[c]) for c in range(4) for h in range(9357)) # Quantidade do componente 'c' no horario 'h'
+#r3=m.addConstr ((T[h] for h in T),GRB.LESS_EQUAL,25.0)    #Temperatura Máxima
+#r4=m.addConstr (T[h] >= 20 for h in range(9357))    #Temperatura Mínima
+#r5=m.addConstr (RH[h] >= 30 for h in range(9357))   #Humidade relativa do ar Mínima
+
+m.addConstr ((sum(y[h]) for h in range(9357))==1)
+for h in range(9357):
+#    m.addConstr (T[h]*y[h]<=25,h)
+#    m.addConstr (T[h]*y[h]>=20)
+#    m.addConstr (RH[h]*y[h]>=30)
+    for c in range(4):
+        m.addConstr (Q_ch[c][h]*y[h] <= lim_c[c])
 
 #Objetivo
-m.setObjective((quicksum(t_c[c]*Q_ch[c][h])*y[h] 
-                                for h in 9357
-                                for c in 4),GRB.MINIMIZE)
+m.setObjective(sum(sum(t_c[c]*Q_ch[c][h] for c in range(4))*y[h] for h in range(9357)),GRB.MINIMIZE)
+
+    
+#m.setObjective(((sum(sum(t_c[c]*Q_ch[c][h]))*y[h]) for c in range(4) for h in range(9357)),GRB.MINIMIZE)
+
+m.optimize ()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
