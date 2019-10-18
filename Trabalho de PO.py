@@ -115,9 +115,9 @@ m=Model('Modelo')
 #Variáveis
 
 y={}
-
+#9357
 for h in range(9357):
-    y[h]=m.addVar(vtype = GRB.BINARY)
+    y[h]=m.addVar(vtype = GRB.BINARY, name=str(h))
 
 m.update()
 
@@ -130,21 +130,22 @@ m.update()
 #r4=m.addConstr (Temperatura[h] >= 20 for h in range(9357))    #Temperatura Mínima
 #r5=m.addConstr (Humidade_Relativa[h] >= 30 for h in range(9357))   #Humidade relativa do ar Mínima
 
-m.addConstr ((sum(y[h]) for h in range(9357))==1)
+m.addConstr ((sum(y[h] for h in range(9357))) == 1, "c1")
 for h in range(9357):
-#    m.addConstr (Temperatura[h]*y[h]<=25,h)
-#    m.addConstr (Temperatura[h]*y[h]>=20)
-#    m.addConstr (Humidade_Relativa[h]*y[h]>=30)
+##    m.addConstr (Temperatura[h]*y[h]<=25,h)
+##    m.addConstr (Temperatura[h]*y[h]>=20)
+##    m.addConstr (Humidade_Relativa[h]*y[h]>=30)
     for c in range(4):
         m.addConstr (Quantidade_Componente_Hora[c][h]*y[h] <= Limite_Componente[c])
 
 
 #Objetivo
-
 m.setObjective(sum(sum(Toxicidade[c]*Quantidade_Componente_Hora[c][h] for c in range(4))*y[h] for h in range(9357)),GRB.MINIMIZE)
+test = [4,3,2,1]
+#m.setObjective(sum (test[h]*y[h] for h in range(4)),GRB.MINIMIZE)
+
 
 m.optimize ()
-
 
 
 
