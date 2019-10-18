@@ -114,9 +114,16 @@ m=Model('Modelo')
 
 #Variáveis
 
+
+
+# total de dados 9357
+# primeiro domingo 78
+# semana tem 168 horas
+# 78+268 = 246
+#
 y={}
 #9357
-for h in range(9357):
+for h in range(78,246):
     y[h]=m.addVar(vtype = GRB.BINARY, name=str(h))
 
 m.update()
@@ -124,31 +131,40 @@ m.update()
 
 #Restrições
 
+
+
+
 #r1=m.addConstr ((sum(y[h]) for h in range(9357))==1)
 #r2=m.addConstr ((Quantidade_Componente_Hora[c][h]*y[h] <= Limite_Componente[c]) for c in range(4) for h in range(9357)) # Quantidade do componente 'c' no horario 'h'
 #r3=m.addConstr ((Temperatura[h] for h in Temperatura),GRB.LESS_EQUAL,25.0)    #Temperatura Máxima
 #r4=m.addConstr (Temperatura[h] >= 20 for h in range(9357))    #Temperatura Mínima
 #r5=m.addConstr (Humidade_Relativa[h] >= 30 for h in range(9357))   #Humidade relativa do ar Mínima
 
-m.addConstr ((sum(y[h] for h in range(9357))) == 1, "c1")
-for h in range(9357):
-##    m.addConstr (Temperatura[h]*y[h]<=25,h)
-##    m.addConstr (Temperatura[h]*y[h]>=20)
+m.addConstr ((sum(y[h] for h in range(78,246))) == 16, "c1")
+#m.addConstr (sum(Hora[h]*y[h] for h in range(78,246))>=8)
+#m.addConstr (sum(Temperatura[h]*y[h] for h in range(78,246))<=30)
+#m.addConstr (sum(Temperatura[h]*y[h] for h in range(78,246))>=0)
+#m.addConstr (sum(Humidade_Relativa[h]*y[h] for h in range(78,246))>=30)
+
+
+for h in range(78,246):
+##    m.addConstr (Hora[h]*y[h]<=20)
+#    m.addConstr (Hora[h]*y[h]>=1, "ch"+str(h))
 ##    m.addConstr (Humidade_Relativa[h]*y[h]>=30)
     for c in range(4):
         m.addConstr (Quantidade_Componente_Hora[c][h]*y[h] <= Limite_Componente[c])
 
 
 #Objetivo
-m.setObjective(sum(sum(Toxicidade[c]*Quantidade_Componente_Hora[c][h] for c in range(4))*y[h] for h in range(9357)),GRB.MINIMIZE)
-test = [4,3,2,1]
+m.setObjective(sum(sum(Toxicidade[c]*Quantidade_Componente_Hora[c][h] for c in range(4))*y[h] for h in range(78,246)),GRB.MINIMIZE)
 #m.setObjective(sum (test[h]*y[h] for h in range(4)),GRB.MINIMIZE)
 
 
 m.optimize ()
 
-
-
+for v in m.getVars():
+    if(v.x==1):
+        print("Resultado = "+str(Hora[int(v.varName)])+"h   "+Data[int(v.varName)].strftime("%A"))
 
 
 
