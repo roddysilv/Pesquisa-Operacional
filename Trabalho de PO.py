@@ -50,13 +50,13 @@ def trataValor(vet):
             aux1=0                          #aux para achar a média
             aux2=0
             vetAux=[]
-            for i in range(0+j,len(vet),24): #pega valores de determinada HR
+            for i in range(0+j,len(vet),24):#pega valores de determinada HR
                 vetAux.append(vet[i])
             for i in range(len(vetAux)):    #pega apenas valores validos
                 if vetAux[i]!=-200:
                     aux1=aux1+vetAux[i]
                     aux2=aux2+1
-            for i in range(0+j,len(vet),24): #substitui média dos valores validos de uma hr no vet original
+            for i in range(0+j,len(vet),24):#substitui média dos valores validos de uma hr no vet original
                 if vet[i]==-200:
                     vet[i]=round(aux1/aux2,4)
             vetAux.clear()
@@ -81,7 +81,6 @@ def data():
         Data[i]=datetime.strptime(Data[i],'%d/%m/%Y') 
         
        
-
 inicia()
 
 hora()
@@ -96,18 +95,37 @@ trataValor(Temperatura)
 trataValor(Humidade_Relativa)
 trataValor(Humidade_Absoluta)
     
-Quantidade_Componente_Hora=np.zeros([4,len(CO)]) # Quantidade do componente 'c' no horario 'h'
+Quantidade_Componente_Hora=np.zeros([4,len(CO)]) #Quantidade do componente 'c' no horario 'h'
 for i in range(len(CO)):
     Quantidade_Componente_Hora[0][i]=CO[i]
     Quantidade_Componente_Hora[1][i]=C6H6[i]
     Quantidade_Componente_Hora[2][i]=NOx[i]
     Quantidade_Componente_Hora[3][i]=NO2[i]
 
+Quantidade_Componente_Semana_Hora=np.zeros([6,55,168])
+aux=78
+for s in range(55):
+    for h in range(168):
+        Quantidade_Componente_Semana_Hora[0][s][h]=CO[aux]
+        Quantidade_Componente_Semana_Hora[1][s][h]=C6H6[aux]
+        Quantidade_Componente_Semana_Hora[2][s][h]=NOx[aux]
+        Quantidade_Componente_Semana_Hora[3][s][h]=NO2[aux]
+        Quantidade_Componente_Semana_Hora[4][s][h]=Temperatura[aux]
+        Quantidade_Componente_Semana_Hora[5][s][h]=Humidade_Relativa[aux]
+        aux+=1
 
 #SIMPLEX
 
 
+# total de dados 9357
+# primeiro domingo 0h 78
+# ultimo sabado 23h 9317
+# semana tem 168 horas
+# 78+168 = 246
+
+
 #Modelo
+
 
 m=Model('Modelo')
 
@@ -115,15 +133,9 @@ m=Model('Modelo')
 #Variáveis
 
 
-
-# total de dados 9357
-# primeiro domingo 78
-# semana tem 168 horas
-# 78+268 = 246
-#
 y={}
-#9357
-for h in range(78,246):
+
+for h in range(168):
     y[h]=m.addVar(vtype = GRB.BINARY, name=str(h))
 
 m.update()
@@ -132,31 +144,33 @@ m.update()
 #Restrições
 
 
-
-
 #r1=m.addConstr ((sum(y[h]) for h in range(9357))==1)
 #r2=m.addConstr ((Quantidade_Componente_Hora[c][h]*y[h] <= Limite_Componente[c]) for c in range(4) for h in range(9357)) # Quantidade do componente 'c' no horario 'h'
 #r3=m.addConstr ((Temperatura[h] for h in Temperatura),GRB.LESS_EQUAL,25.0)    #Temperatura Máxima
 #r4=m.addConstr (Temperatura[h] >= 20 for h in range(9357))    #Temperatura Mínima
 #r5=m.addConstr (Humidade_Relativa[h] >= 30 for h in range(9357))   #Humidade relativa do ar Mínima
 
-m.addConstr ((sum(y[h] for h in range(78,246))) == 16, "c1")
-#m.addConstr (sum(Hora[h]*y[h] for h in range(78,246))>=8)
-#m.addConstr (sum(Temperatura[h]*y[h] for h in range(78,246))<=30)
-#m.addConstr (sum(Temperatura[h]*y[h] for h in range(78,246))>=0)
-#m.addConstr (sum(Humidade_Relativa[h]*y[h] for h in range(78,246))>=30)
+#m.addConstr ((sum(y[h] for h in range(78,246))) == 1, "c1") #1 SEMANA
+m.addConstr ((sum(y[h] for h in range(168))) == 1, "c1") 
+m.addConstr (sum(Hora[78+h]*y[h] for h in range(168))<=20)
+m.addConstr (sum(Hora[78+h]*y[h] for h in range(168))>=8)
+#m.addConstr (sum(Temperatura[h]*y[h] for h in range(a,b))<=30)
+#m.addConstr (sum(Temperatura[h]*y[h] for h in range(a,b))>=0)
+#m.addConstr (sum(Humidade_Relativa[h+78]*y[h] for h in range(168))>=30)
+m.addConstr (sum(sum(Quantidade_Componente_Semana_Hora[5][s][h]*y[h] for h in range(168)) for s in range(55))>=30)
+#m.addConstr ()
 
-
-for h in range(78,246):
-##    m.addConstr (Hora[h]*y[h]<=20)
-#    m.addConstr (Hora[h]*y[h]>=1, "ch"+str(h))
-##    m.addConstr (Humidade_Relativa[h]*y[h]>=30)
-    for c in range(4):
-        m.addConstr (Quantidade_Componente_Hora[c][h]*y[h] <= Limite_Componente[c])
-
+#for h in range(168):
+#    for c in range(4):
+##        m.addConstr (Quantidade_Componente_Hora[c][h]*y[h] <= Limite_Componente[c])
+#        for s in range(55):
+#            m.addConstr (Quantidade_Componente_Semana_Hora[c][s][h]*y[h]<=Limite_Componente[c])
 
 #Objetivo
-m.setObjective(sum(sum(Toxicidade[c]*Quantidade_Componente_Hora[c][h] for c in range(4))*y[h] for h in range(78,246)),GRB.MINIMIZE)
+
+
+#m.setObjective(sum(sum(Toxicidade[c]*Quantidade_Componente_Hora[c][h] for c in range(4))*y[h] for h in range(a,b)),GRB.MINIMIZE)
+m.setObjective(sum(sum(sum(Toxicidade[c]*Quantidade_Componente_Semana_Hora[c][s][h] for c in range(4))*y[h] for h in range(168))for s in range(55)),GRB.MINIMIZE)
 #m.setObjective(sum (test[h]*y[h] for h in range(4)),GRB.MINIMIZE)
 
 
@@ -164,24 +178,4 @@ m.optimize ()
 
 for v in m.getVars():
     if(v.x==1):
-        print("Resultado = "+str(Hora[int(v.varName)])+"h   "+Data[int(v.varName)].strftime("%A"))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        print("Resultado = "+str(Hora[int(v.varName)+78])+"h   "+Data[int(v.varName)+78].strftime("%A"))
