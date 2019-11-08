@@ -4,22 +4,22 @@ from datetime import datetime
 from gurobipy import *
 
 
-df=pd.read_csv('instancias.csv')     #Cria Data Frame 
-df=df.values                    #Cria matriz apenas com os valores do df
+df=pd.read_csv('instancias.csv')    #Cria Data Frame 
+df=df.values                        #Cria matriz apenas com os valores do Data Frame
 
 #Arrays das concentrações de cada componente pelo horário e outros dados, de acordo com a referência
-CO=[]                           #Concentração horária média de CO em mg/m^3
-NMHC=[]                         #Concentração horária média de Hidrocarbonetos não metanos em microg/m^3
-C6H6=[]                         #Concentração horária média de Benzeno (C6H6) em microg/m^3
-NOx=[]                          #Concentração horária média de NOx em ppb
-NO2=[]                          #Concentração horária média de NO2 em microg/m^3
-Temperatura=[]                  #Temperatura em °C
-Umidade_Relativa=[]             #Umidade Relativa (%)
-Umidade_Absoluta=[]             #Umidade Absoluta
-Hora=[]                         #Hora (HH.MM.SS)
-Data=[]                         #Data (DD/MM/YYYY)
-
-Toxicidade=[3,2,1,1]            #Coeficiente de toxicidade dos componentes: [CO, C6H6, NOx, NO2]
+CO=[]                               #Concentração horária média de CO em mg/m^3
+NMHC=[]                             #Concentração horária média de Hidrocarbonetos não metanos em microg/m^3
+C6H6=[]                             #Concentração horária média de Benzeno (C6H6) em microg/m^3
+NOx=[]                              #Concentração horária média de NOx em ppb
+NO2=[]                              #Concentração horária média de NO2 em microg/m^3
+Temperatura=[]                      #Temperatura em °C
+Umidade_Relativa=[]                 #Umidade Relativa (%)
+Umidade_Absoluta=[]                 #Umidade Absoluta
+Hora=[]                             #Hora (HH.MM.SS)
+Data=[]                             #Data (DD/MM/YYYY)
+    
+Toxicidade=[3,2,1,1]                #Coeficiente de toxicidade dos componentes: [CO, C6H6, NOx, NO2]
 
 def inicia():
     for i in range(len(df[:,:])):
@@ -105,7 +105,7 @@ for i in range(len(CO)):
 #Armazena as concentrações horárias semanais de cada componente c em Quantidade_Componente_Semana_Hora
 
 Quantidade_Componente_Semana_Hora=np.zeros([6,55,168])
-aux=78
+aux=78  # Data[78] é o primeiro domingo da base de dados
 for s in range(55):
     for h in range(168):
         Quantidade_Componente_Semana_Hora[0][s][h]=CO[aux]
@@ -134,20 +134,33 @@ m=Model('Modelo')
 
 #Variáveis
 
-y={} # vetor com as horas possiveis - representa a variável do modelo
+y = {} # vetor com as horas possiveis - representa a variável do modelo
+x = {}
 
 for h in range(168):
-    y[h]=m.addVar(vtype = GRB.BINARY, name=str(h))
+    y[h] = m.addVar(vtype = GRB.BINARY, name = str(h))
+
+for h in range(23):
+    x[h] = m.addVar(vtype = GRB.BINARY, name = str(h))
+
 
 m.update()
 
 
 #Restrições
 
-m.addConstr ((sum(y[h] for h in range(168))) == 1, "c1") #garante que apenas um horário será selecionado (restrição binária)
-m.addConstr (sum(Hora[78+h]*y[h] for h in range(168))<=20) #garante que o horário analisado pertence a um intervalo útil do dia
-m.addConstr (sum(Hora[78+h]*y[h] for h in range(168))>=8) #garante que o horário analisado pertence a um intervalo útil do dia
-m.addConstr (sum(sum(Quantidade_Componente_Semana_Hora[4][s][h]*y[h] for h in range(168)) for s in range(55))>=30) #garante que a umidade relativa do ar está acima de 30%
+m.addConstr ((sum(y[h] for h in range(168))) == 1, "c1")    #Garante que apenas um horário será selecionado (restrição binária)
+m.addConstr ((sum(x[h]) for h in range (23)) == 1)
+
+for h in range(168):
+    m.addConstr ( Hora[78+h]*y[h] <= 20 )  #Garante que o horário analisado pertence a um intervalo útil do dia
+    m.addConstr ( Hora[78+h]*y[h] >= 8 )   #Garante que o horário analisado pertence a um intervalo útil do dia
+    for s in range (55):
+        m.addConstr ( Quantidade_Componente_Semana_Hora[4][s][h]*y[h] >=30 )  #Garante que a umidade relativa do ar está acima de 30%
+
+for i in range(10):
+    m.addConstr (y[i]<=x[i])
+
 
 
 #Objetivo
