@@ -140,27 +140,43 @@ x = {}
 for h in range(168):
     y[h] = m.addVar(vtype = GRB.BINARY, name = str(h))
 
-for h in range(23):
-    x[h] = m.addVar(vtype = GRB.BINARY, name = str(h))
+#for h in range(23):
+#    x[h] = m.addVar(vtype = GRB.BINARY, name = str(h)+"x")
 
+
+maximoPorDia = 2
+TotalDeHoras = 10
 
 m.update()
 
 
 #Restrições
 
-m.addConstr ((sum(y[h] for h in range(168))) == 1, "c1")    #Garante que apenas um horário será selecionado (restrição binária)
-m.addConstr ((sum(x[h]) for h in range (23)) == 1)
+m.addConstr ((sum(y[h] for h in range(168))) == TotalDeHoras, "c1")    #Garante que apenas um horário será selecionado (restrição binária)
 
-for h in range(168):
-    m.addConstr ( Hora[78+h]*y[h] <= 20 )  #Garante que o horário analisado pertence a um intervalo útil do dia
-    m.addConstr ( Hora[78+h]*y[h] >= 8 )   #Garante que o horário analisado pertence a um intervalo útil do dia
-    for s in range (55):
-        m.addConstr ( Quantidade_Componente_Semana_Hora[4][s][h]*y[h] >=30 )  #Garante que a umidade relativa do ar está acima de 30%
+#m.addConstr ((sum(x[h] for h in range (23))) == 2, "c2")
 
-for i in range(10):
-    m.addConstr (y[i]<=x[i])
 
+m.addConstrs((Hora[78+h]*y[h] >= 8*y[h] for h in range(168)), name='c')
+m.addConstrs((Hora[78+h]*y[h] <= 20 for h in range(168)), name='d')
+
+#m.addConstrs (((Quantidade_Componente_Semana_Hora[4][s][h]*y[h] >= 30*y[h]) for h in range(168) for s in range (55)),name="h" )
+
+
+#m.addConstr (sum(Hora[78+h]*y[h] for h in range(168))>=8) #garante que o horário analisado pertence a um intervalo útil do dia
+
+#for h in range(168):
+#    m.addConstr ( Hora[78+h]*y[h] <= 20, "h1"+str(h) )  #Garante que o horário analisado pertence a um intervalo útil do dia
+      #Garante que o horário analisado pertence a um intervalo útil do dia
+#    for s in range (55):
+#        m.addConstr ( Quantidade_Componente_Semana_Hora[4][s][h]*y[h] >=30*y[h],"h3"+str(h)+str(s) )  #Garante que a umidade relativa do ar está acima de 30%
+
+m.addConstrs(sum(y[(i*24)+h] for h in range(23)) <= maximoPorDia for i in range(7))
+
+
+#for i in range(7):
+#    for h in range(23):
+#        print((i*24)+h)
 
 
 #Objetivo
@@ -172,6 +188,9 @@ m.setObjective(sum(sum(sum(Toxicidade[c]*Quantidade_Componente_Semana_Hora[c][s]
 
 m.optimize ()
 
-for v in m.getVars():
-    if(v.x==1):
-        print("Resultado = "+str(Hora[int(v.varName)+78])+"h   "+Data[int(v.varName)+78].strftime("%A"))
+try:
+    for v in m.getVars():
+        if(v.x==1):
+            print("Resultado = "+str(Hora[int(v.varName)+78])+"h   "+Data[int(v.varName)+78].strftime("%A"))
+except:
+    print ("")
